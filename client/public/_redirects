@@ -1,4 +1,5 @@
-# Netlify redirect rules
-# Replace YOUR_RENDER_BACKEND_URL below with your actual Render backend URL after deployment
+# SPA redirect - all routes go to index.html
+/* /index.html 200
 
-/api/*  YOUR_RENDER_BACKEND_URL/:splat  200
+# API proxy - forward API calls to backend
+/api/* https://YOUR_RENDER_URL/api/:splat 200
