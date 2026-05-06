@@ -1,0 +1,4 @@
+# Netlify redirect rules
+# Replace YOUR_RENDER_BACKEND_URL below with your actual Render backend URL after deployment
+
+/api/*  YOUR_RENDER_BACKEND_URL/:splat  200
