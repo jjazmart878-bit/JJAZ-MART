@@ -2,7 +2,7 @@ import { Box } from '@mui/material';
 import { Outlet, useLocation } from 'react-router-dom';
 import Header from './Header';
 import Footer from './Footer';
-import CartDrawer from '../cart/CartDrawer';
+import FloatingCartButton from '../cart/FloatingCartButton';
 import { useAuthStore } from '../../store/authStore';
 
 const Layout = () => {
@@ -28,7 +28,7 @@ const Layout = () => {
         <Outlet />
       </Box>
       <Footer />
-      <CartDrawer />
+      <FloatingCartButton />
     </Box>
   );
 };

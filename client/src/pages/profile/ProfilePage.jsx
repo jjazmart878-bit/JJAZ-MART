@@ -43,11 +43,13 @@ const ProfilePage = () => {
   const createAddress = useMutation({
     mutationFn: addressesAPI.create,
     onSuccess: () => { queryClient.invalidateQueries(['addresses']); setAddressDialog(false); toast.success('Address added'); },
+    onError: (e) => toast.error(e.response?.data?.error || 'Failed to add address'),
   });
 
   const updateAddress = useMutation({
     mutationFn: ({ id, data }) => addressesAPI.update(id, data),
     onSuccess: () => { queryClient.invalidateQueries(['addresses']); setAddressDialog(false); setEditAddress(null); toast.success('Address updated'); },
+    onError: (e) => toast.error(e.response?.data?.error || 'Failed to update address'),
   });
 
   const deleteAddress = useMutation({
@@ -243,12 +245,12 @@ const ProfilePage = () => {
       <Dialog open={addressDialog} onClose={() => setAddressDialog(false)} maxWidth="sm" fullWidth>
         <DialogTitle sx={{ fontWeight: 600 }}>{editAddress ? 'Edit Address' : 'Add Address'}</DialogTitle>
         <DialogContent>
-          <TextField fullWidth label="Label (e.g. Home, Office)" value={addressForm.label} onChange={(e) => setAddressForm({ ...addressForm, label: e.target.value })} sx={{ mt: 2, mb: 2 }} />
-          <TextField fullWidth label="Full Address" value={addressForm.fullAddress} multiline rows={2} onChange={(e) => setAddressForm({ ...addressForm, fullAddress: e.target.value })} sx={{ mb: 2 }} />
+          <TextField fullWidth label="Label (e.g. Home, Office)" value={addressForm.label} onChange={(e) => setAddressForm({ ...addressForm, label: e.target.value })} required sx={{ mt: 2, mb: 2 }} error={!addressForm.label} helperText={!addressForm.label ? 'Required' : ''} />
+          <TextField fullWidth label="Full Address" value={addressForm.fullAddress} multiline rows={2} onChange={(e) => setAddressForm({ ...addressForm, fullAddress: e.target.value })} required sx={{ mb: 2 }} error={!addressForm.fullAddress} helperText={!addressForm.fullAddress ? 'Required' : ''} />
           <Grid container spacing={2}>
-            <Grid item xs={6}><TextField fullWidth label="City" value={addressForm.city} onChange={(e) => setAddressForm({ ...addressForm, city: e.target.value })} /></Grid>
-            <Grid item xs={6}><TextField fullWidth label="State" value={addressForm.state} onChange={(e) => setAddressForm({ ...addressForm, state: e.target.value })} /></Grid>
-            <Grid item xs={6}><TextField fullWidth label="Pincode" value={addressForm.pincode} onChange={(e) => setAddressForm({ ...addressForm, pincode: e.target.value })} /></Grid>
+            <Grid item xs={6}><TextField fullWidth label="City" value={addressForm.city} onChange={(e) => setAddressForm({ ...addressForm, city: e.target.value })} required error={!addressForm.city} helperText={!addressForm.city ? 'Required' : ''} /></Grid>
+            <Grid item xs={6}><TextField fullWidth label="State" value={addressForm.state} onChange={(e) => setAddressForm({ ...addressForm, state: e.target.value })} required error={!addressForm.state} helperText={!addressForm.state ? 'Required' : ''} /></Grid>
+            <Grid item xs={6}><TextField fullWidth label="Pincode" value={addressForm.pincode} onChange={(e) => setAddressForm({ ...addressForm, pincode: e.target.value })} required error={!addressForm.pincode} helperText={!addressForm.pincode ? 'Required' : ''} /></Grid>
           </Grid>
           <Box sx={{ mt: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
             <Radio checked={addressForm.isDefault} onChange={(e) => setAddressForm({ ...addressForm, isDefault: e.target.checked })} sx={{ color: '#22c55e', '&.Mui-checked': { color: '#22c55e' } }} />
@@ -257,7 +259,14 @@ const ProfilePage = () => {
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={() => setAddressDialog(false)}>Cancel</Button>
-          <Button variant="contained" onClick={handleSaveAddress} sx={{ bgcolor: '#22c55e' }}>Save</Button>
+          <Button 
+            variant="contained" 
+            onClick={handleSaveAddress} 
+            disabled={!addressForm.label || !addressForm.fullAddress || !addressForm.city || !addressForm.state || !addressForm.pincode || createAddress.isPending || updateAddress.isPending}
+            sx={{ bgcolor: '#22c55e' }}
+          >
+            {createAddress.isPending || updateAddress.isPending ? 'Saving...' : 'Save'}
+          </Button>
         </DialogActions>
       </Dialog>
 
