@@ -30,48 +30,132 @@ try {
 
 let brevoApi = null;
 if (process.env.BREVO_API_KEY) {
-  try {
-    const https = require('https');
-    brevoApi = {
-      send: (email, otp, type) => {
-        return new Promise((resolve, reject) => {
-          const subject = type === 'verification' ? 'Verify Your JJAZ MART Account' : 'Your JJAZ MART Password Reset OTP';
-          const postData = JSON.stringify({
-            subject: subject,
-            htmlContent: htmlContent,
-            sender: { name: 'JJAZ MART', email: 'ab7187001@smtp-brevo.com' },
-            to: [{ email: email }]
-          });
-          const options = {
-            hostname: 'api.brevo.com',
-            port: 443,
-            path: '/v3/smtp/email',
-            method: 'POST',
-            headers: {
-              'accept': 'application/json',
-              'api-key': process.env.BREVO_API_KEY,
-              'content-type': 'application/json',
-              'content-length': Buffer.byteLength(postData)
-            }
-          };
-          const req = https.request(options, (res) => {
-            let data = '';
-            res.on('data', chunk => data += chunk);
-            res.on('end', () => {
-              console.log('Brevo Status:', res.statusCode, data);
-              if (res.statusCode === 201 || res.statusCode === 200) resolve(data);
-              else reject(new Error(data));
+  brevoApi = {
+    send: (email, otp, type) => {
+      return new Promise((resolve, reject) => {
+        const https = require('https');
+        const subject = type === 'verification' ? 'Verify Your JJAZ MART Account' : 'Your JJAZ MART Password Reset OTP';
+        const htmlContent = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JJAZ MART</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f4f4f4; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f4f4f4;">
+    <tr>
+      <td align="center" style="padding: 40px 20px;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 480px; background-color: #ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.1);">
+          <tr>
+            <td style="background: linear-gradient(135deg, #22c55e 0%, #15803d 100%); padding: 40px 30px; text-align: center;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 32px; font-weight: 800; letter-spacing: 2px;">JJAZ MART</h1>
+              <p style="color: rgba(255,255,255,0.85); margin: 10px 0 0 0; font-size: 14px;">Your Trusted Grocery Store</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 40px 30px;">
+              <h2 style="color: #1f2937; margin: 0 0 10px 0; font-size: 24px; font-weight: 600; text-align: center;">
+                ${type === 'verification' ? 'Verify Your Email' : 'Reset Password'}
+              </h2>
+              <div style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 2px solid #22c55e; border-radius: 16px; padding: 30px; text-align: center; margin: 20px 0;">
+                <p style="color: #6b7280; margin: 0 0 10px 0; font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Your Verification Code</p>
+                <p style="margin: 0; font-size: 42px; font-weight: 800; color: #22c55e; letter-spacing: 12px;">${otp}</p>
+              </div>
+              <p style="color: #9ca3af; font-size: 13px; text-align: center;">Expires in <strong>10 minutes</strong></p>
+            </td>
+          </tr>
+          <tr>
+            <td style="background-color: #1f2937; padding: 20px; text-align: center;">
+              <p style="color: #9ca3af; font-size: 12px; margin: 0;">&copy; 2026 JJAZ MART</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+`;
+        
+        // First create contact, then send email
+        const createContact = () => {
+          return new Promise((res, rej) => {
+            const postData = JSON.stringify({ email: email, listIds: [] });
+            const opts = {
+              hostname: 'api.brevo.com',
+              port: 443,
+              path: '/v3/contacts',
+              method: 'POST',
+              headers: { 'accept': 'application/json', 'api-key': process.env.BREVO_API_KEY, 'content-type': 'application/json', 'content-length': Buffer.byteLength(postData) }
+            };
+            const req = https.request(opts, (res2) => {
+              let data = '';
+              res2.on('data', chunk => data += chunk);
+              res2.on('end', () => res(JSON.parse(data)));
             });
+            req.on('error', rej);
+            req.write(postData);
+            req.end();
           });
-          req.on('error', reject);
-          req.write(postData);
-          req.end();
-        });
-      }
-    };
-  } catch (e) {
-    console.log('Brevo not configured');
-  }
+        };
+
+        const sendEmail = () => {
+          return new Promise((res, rej) => {
+            const postData = JSON.stringify({
+              subject: subject,
+              htmlContent: htmlContent,
+              sender: { name: 'JJAZ MART', email: 'jjazmart878@gmail.com' },
+              to: [{ email: email }]
+            });
+            const opts = {
+              hostname: 'api.brevo.com',
+              port: 443,
+              path: '/v3/smtp/email',
+              method: 'POST',
+              headers: { 'accept': 'application/json', 'api-key': process.env.BREVO_API_KEY, 'content-type': 'application/json', 'content-length': Buffer.byteLength(postData) }
+            };
+            const req = https.request(opts, (res2) => {
+              let data = '';
+              res2.on('data', chunk => data += chunk);
+              res2.on('end', () => res({ status: res2.statusCode, data: data }));
+            });
+            req.on('error', rej);
+            req.write(postData);
+            req.end();
+          });
+        };
+
+        (async () => {
+          try {
+            console.log('Creating Brevo contact...');
+            await createContact();
+            console.log('Contact created, sending email...');
+            const result = await sendEmail();
+            console.log('Brevo result:', result.status, result.data);
+            if (result.status === 201 || result.status === 200) resolve(result.data);
+            else {
+              console.log('Brevo error, trying Gmail fallback...');
+              if (transporter) {
+                await transporter.sendMail({
+                  from: process.env.EMAIL_FROM || '"JJAZ MART" <jjazmart878@gmail.com>',
+                  to: email,
+                  subject: subject,
+                  html: htmlContent
+                });
+                resolve('sent via Gmail');
+              } else {
+                reject(new Error(result.data));
+              }
+            }
+          } catch (e) {
+            reject(e);
+          }
+        })();
+      });
+    }
+  };
 }
 
 const sendOTPEmail = async (email, otp, type) => {
@@ -168,13 +252,14 @@ const sendOTPEmail = async (email, otp, type) => {
         host: 'smtp-relay.brevo.com',
         port: 587,
         secure: false,
+        requireTLS: true,
         auth: {
           user: process.env.SMTP_USER,
           pass: process.env.SMTP_PASS
         }
       });
       await brevoTransport.sendMail({
-        from: process.env.SMTP_USER,
+        from: process.env.EMAIL_FROM || process.env.SMTP_USER,
         to: email,
         subject: subject,
         html: htmlContent
