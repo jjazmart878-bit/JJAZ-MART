@@ -12,10 +12,9 @@ const otpStore = new Map();
 const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
 
 const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST,
-  port: parseInt(process.env.EMAIL_PORT || '587'),
-  secure: false,
-  requireTLS: true,
+  host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+  port: 465,
+  secure: true,
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS
@@ -102,7 +101,7 @@ const sendOTPEmail = async (email, otp, type) => {
 </html>
 `;
     
-    if (process.env.NODE_ENV === 'production' && process.env.RESEND_API_KEY && process.env.RESEND_API_KEY.startsWith('re_')) {
+    if (process.env.RESEND_API_KEY && process.env.RESEND_API_KEY.startsWith('re_')) {
       console.log('Using Resend API...');
       const result = await resend.emails.send({
         from: 'JJAZ MART <onboarding@resend.dev>',
