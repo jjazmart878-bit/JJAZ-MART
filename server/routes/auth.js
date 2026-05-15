@@ -9,10 +9,20 @@ const { validate, registerSchema, loginSchema, updateProfileSchema } = require('
 const { authenticateToken } = require('../middleware/auth');
 
 const otpStore = new Map();
-
 const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
 
-const resend = new Resend(process.env.RESEND_API_KEY || 're_123456789');
+const transporter = nodemailer.createTransport({
+  host: process.env.EMAIL_HOST,
+  port: parseInt(process.env.EMAIL_PORT || '587'),
+  secure: false,
+  requireTLS: true,
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
+  }
+});
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 const sendOTPEmail = async (email, otp, type) => {
   console.log('Sending OTP to:', email, 'OTP:', otp);
@@ -69,23 +79,42 @@ const sendOTPEmail = async (email, otp, type) => {
       </html>
     `;
     
-    if (process.env.RESEND_API_KEY && process.env.RESEND_API_KEY.startsWith('re_')) {
+    if (process.env.NODE_ENV === 'production' && process.env.RESEND_API_KEY && process.env.RESEND_API_KEY.startsWith('re_')) {
       const result = await resend.emails.send({
-        from: 'JJAZ MART <onboarding@resend.dev>',
+        from: process.env.EMAIL_FROM || 'JJAZ MART <onboarding@resend.dev>',
         to: email,
         subject: subject,
         html: htmlContent
       });
       console.log('Email sent via Resend to:', email, 'Result:', result);
       return true;
+    } else if (process.env.EMAIL_HOST && process.env.EMAIL_USER) {
+      console.log('Using SMTP - Host:', process.env.EMAIL_HOST, 'User:', process.env.EMAIL_USER);
+      const info = await transporter.sendMail({
+        from: process.env.EMAIL_FROM,
+        to: email,
+        subject: subject,
+        html: htmlContent
+      });
+      console.log('Email sent via SMTP to:', email, 'MessageId:', info.messageId);
+      return true;
     } else {
-      throw new Error('Resend API key not configured');
+      console.log('No email service configured, logging OTP for dev:', otp);
+      return true;
     }
   } catch (error) {
     console.error('Email error:', error.message);
     return false;
   }
 };
+
+router.post('/test-otp', async (req, res) => {
+  const { email } = req.body;
+  const otp = generateOTP();
+  otpStore.set(email, { otp, expires: Date.now() + 600000 });
+  const sent = await sendOTPEmail(email, otp, 'verification');
+  res.json({ sent, otp }); // for testing
+});
 
 router.post('/register', validate(registerSchema), async (req, res) => {
   try {
