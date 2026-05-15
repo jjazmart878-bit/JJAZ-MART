@@ -36,19 +36,71 @@ const sendOTPEmail = async (email, otp, type) => {
     const subject = type === 'verification' ? 'Verify Your JJAZ MART Account' : 'Your JJAZ MART Password Reset OTP';
     
     const htmlContent = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); padding: 30px; text-align: center;">
-          <h1 style="color: white; margin: 0; font-size: 28px;">JJAZ MART</h1>
-        </div>
-        <div style="padding: 30px; background: #fff;">
-          <h2 style="color: #333;">Your OTP Code</h2>
-          <div style="background: #f0fdf4; border: 2px solid #22c55e; border-radius: 10px; padding: 20px; text-align: center; margin: 20px 0;">
-            <span style="font-size: 36px; font-weight: bold; color: #22c55e; letter-spacing: 10px;">${otp}</span>
-          </div>
-          <p style="color: #666; font-size: 14px;">This code expires in 10 minutes.</p>
-        </div>
-      </div>
-    `;
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JJAZ MART</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f4f4f4; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f4f4f4;">
+    <tr>
+      <td align="center" style="padding: 40px 20px;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 480px; background-color: #ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.1);">
+          <!-- Header -->
+          <tr>
+            <td style="background: linear-gradient(135deg, #22c55e 0%, #15803d 100%); padding: 40px 30px; text-align: center;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 32px; font-weight: 800; letter-spacing: 2px;">JJAZ MART</h1>
+              <p style="color: rgba(255,255,255,0.85); margin: 10px 0 0 0; font-size: 14px;">Your Trusted Grocery Store</p>
+            </td>
+          </tr>
+          <!-- Content -->
+          <tr>
+            <td style="padding: 40px 30px;">
+              <h2 style="color: #1f2937; margin: 0 0 10px 0; font-size: 24px; font-weight: 600; text-align: center;">
+                ${type === 'verification' ? 'Verify Your Email' : 'Reset Password'}
+              </h2>
+              <p style="color: #6b7280; margin: 0 0 30px 0; font-size: 15px; line-height: 1.6; text-align: center;">
+                ${type === 'verification' 
+                  ? 'Thank you for joining JJAZ MART! Use the code below to activate your account.' 
+                  : 'We received a request to reset your password. Use the code below to proceed.'}
+              </p>
+              <!-- OTP Box -->
+              <div style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 2px solid #22c55e; border-radius: 16px; padding: 30px; text-align: center; margin: 0 0 25px 0;">
+                <p style="color: #6b7280; margin: 0 0 10px 0; font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Your Verification Code</p>
+                <p style="margin: 0; font-size: 42px; font-weight: 800; color: #22c55e; letter-spacing: 12px;">${otp}</p>
+              </div>
+              <!-- Info -->
+              <div style="background-color: #f9fafb; border-radius: 12px; padding: 20px; text-align: center; margin: 0 0 25px 0;">
+                <p style="color: #374151; margin: 0; font-size: 14px;">
+                  <span style="color: #22c55e; font-size: 18px;">⏱</span><br>
+                  This code expires in <strong>10 minutes</strong>
+                </p>
+              </div>
+              <!-- Footer Note -->
+              <p style="color: #9ca3af; font-size: 13px; text-align: center; margin: 0; line-height: 1.6;">
+                If you didn't request this code, please ignore this email.<br>
+                For security, don't share this code with anyone.
+              </p>
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #1f2937; padding: 25px 30px; text-align: center;">
+              <p style="color: #9ca3af; font-size: 12px; margin: 0;">
+                &copy; 2026 JJAZ MART. All rights reserved.<br>
+                <span style="color: #6b7280;">Delivering freshness to your doorstep</span>
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+`;
     
     if (process.env.NODE_ENV === 'production' && process.env.RESEND_API_KEY && process.env.RESEND_API_KEY.startsWith('re_')) {
       console.log('Using Resend API...');
