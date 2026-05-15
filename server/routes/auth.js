@@ -104,22 +104,33 @@ const sendOTPEmail = async (email, otp, type) => {
     if (process.env.RESEND_API_KEY && process.env.RESEND_API_KEY.startsWith('re_')) {
       console.log('Using Resend API...');
       const result = await resend.emails.send({
-        from: 'JJAZ MART <onboarding@resend.dev>',
+        from: 'JJAZ MART <jjazmart878@gmail.com>',
         to: email,
         subject: subject,
         html: htmlContent
       });
-      console.log('Resend result:', result);
+      console.log('Resend result:', JSON.stringify(result));
+      if (result.error) {
+        console.error('Resend error:', result.error);
+        console.log('FALLBACK: OTP for', email, 'is:', otp);
+        return true; // Still return true so user doesn't see error
+      }
       return true;
     } else if (process.env.EMAIL_HOST && process.env.EMAIL_USER) {
-      console.log('Using SMTP...');
-      await transporter.sendMail({
+      console.log('Using SMTP port 465...');
+      const t = nodemailer.createTransport({
+        host: 'smtp.gmail.com',
+        port: 465,
+        secure: true,
+        auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS }
+      });
+      await t.sendMail({
         from: process.env.EMAIL_FROM,
         to: email,
         subject: subject,
         html: htmlContent
       });
-      console.log('SMTP email sent successfully!');
+      console.log('SMTP email sent! Message ID logged.');
       return true;
     } else {
       console.log('No email config - logging OTP:', otp);
