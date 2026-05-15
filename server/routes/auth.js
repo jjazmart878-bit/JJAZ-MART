@@ -86,53 +86,6 @@ const sendOTPEmail = async (email, otp, type) => {
     return false;
   }
 };
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="utf-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    </head>
-    <body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f8fafc;">
-      <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f8fafc; padding: 40px 20px;">
-        <tr>
-          <td align="center">
-            <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 500px; background-color: #ffffff; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); overflow: hidden;">
-              <tr>
-                <td style="background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); padding: 32px; text-align: center;">
-                  <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 700;">JJAZ MART</h1>
-                  <p style="color: rgba(255,255,255,0.9); margin: 8px 0 0 0; font-size: 14px;">Your Trusted Grocery Store</p>
-                </td>
-              </tr>
-              <tr>
-                <td style="padding: 40px 32px;">
-                  <h2 style="color: #1f2937; margin: 0 0 16px 0; font-size: 24px; font-weight: 600;">${type === 'verification' ? 'Verify Your Email' : 'Reset Your Password'}</h2>
-                  <p style="color: #64748b; margin: 0 0 24px 0; font-size: 15px; line-height: 1.6;">
-                    ${type === 'verification' ? 'Thank you for joining JJAZ MART! Use the verification code below to activate your account.' : 'We received a request to reset your password. Use the code below to proceed.'}
-                  </p>
-                  <div style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border-radius: 12px; padding: 24px; text-align: center; margin: 24px 0;">
-                    <span style="font-size: 32px; font-weight: 700; color: #22c55e; letter-spacing: 8px;">${otp}</span>
-                  </div>
-                  <p style="color: #94a3b8; font-size: 13px; margin: 0;">
-                    This code expires in <strong>10 minutes</strong>
-                  </p>
-                  <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;">
-                  <p style="color: #94a3b8; font-size: 12px; margin: 0;">
-                    If you didn't request this, please ignore this email.
-                  </p>
-                </td>
-              </tr>
-              <tr>
-                <td style="background-color: #1f2937; padding: 24px; text-align: center;">
-                  <p style="color: #9ca3af; font-size: 12px; margin: 0;">&copy; 2026 JJAZ MART. All rights reserved.</p>
-                </td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-      </table>
-    </body>
-    </html>
-};
 
 router.post('/register', validate(registerSchema), async (req, res) => {
   try {
