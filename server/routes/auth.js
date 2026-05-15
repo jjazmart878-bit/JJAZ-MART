@@ -19,13 +19,17 @@ const transporter = nodemailer.createTransport({
   auth: {
     user: process.env.EMAIL_USER || 'jjazmart878@gmail.com',
     pass: process.env.EMAIL_PASS || 'ygff xbpb ssjm shqv'
-  },
-  connectionTimeout: 10000,
-  greetingTimeout: 10000,
-  socketTimeout: 10000
+  }
+});
+
+transporter.on('error', (err) => {
+  console.error('SMTP Transport Error:', err);
 });
 
 const sendOTPEmail = async (email, otp, type) => {
+  console.log('sendOTPEmail called with:', email, type);
+  console.log('Using SMTP - host:', process.env.EMAIL_HOST || 'smtp.gmail.com', 'user:', process.env.EMAIL_USER);
+  
   const subject = type === 'verification' ? 'Verify Your JJAZ MART Account' : 'Your JJAZ MART Password Reset OTP';
   const htmlContent = `
     <!DOCTYPE html>
@@ -78,16 +82,22 @@ const sendOTPEmail = async (email, otp, type) => {
 
   try {
     console.log('Sending OTP email to:', email);
-    await transporter.sendMail({
-      from: process.env.EMAIL_FROM || '"JJAZ MART" <jjazmart878@gmail.com>',
+    console.log('Email config - host: smtp.gmail.com, port: 587');
+    
+    const info = await transporter.sendMail({
+      from: '"JJAZ MART" <jjazmart878@gmail.com>',
       to: email,
       subject: subject,
       html: htmlContent
     });
+    
     console.log('OTP email sent successfully to:', email);
+    console.log('Message ID:', info.messageId);
     return true;
   } catch (error) {
-    console.error('Email error:', error.message);
+    console.error('Email error details:', error);
+    console.error('Email error code:', error.code);
+    console.error('Email error command:', error.command);
     return false;
   }
 };

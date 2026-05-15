@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const db = require('./config/db');
 const { initDatabase } = require('./queries/schema');
+const nodemailer = require('nodemailer');
 
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
@@ -19,6 +20,44 @@ const userOrdersRoutes = require('./routes/userOrders');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+// Test email endpoint
+app.get('/api/test-email', async (req, res) => {
+  try {
+    const transporter = nodemailer.createTransport({
+      host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+      port: parseInt(process.env.EMAIL_PORT) || 587,
+      secure: false,
+      requireTLS: true,
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+      }
+    });
+
+    console.log('Testing email connection...');
+    console.log('SMTP Host:', process.env.EMAIL_HOST || 'smtp.gmail.com');
+    console.log('SMTP User:', process.env.EMAIL_USER);
+    
+    await transporter.verify();
+    console.log('SMTP connection successful!');
+
+    const info = await transporter.sendMail({
+      from: process.env.EMAIL_FROM || '"JJAZ MART" <' + process.env.EMAIL_USER + '>',
+      to: process.env.EMAIL_USER,
+      subject: 'Test Email from JJAZ MART',
+      text: 'This is a test email to verify SMTP is working.'
+    });
+
+    console.log('Test email sent, Message ID:', info.messageId);
+    res.json({ success: true, messageId: info.messageId });
+  } catch (error) {
+    console.error('Test email failed:', error);
+    console.error('Error code:', error.code);
+    console.error('Error command:', error.command);
+    res.status(500).json({ success: false, error: error.message, code: error.code });
+  }
+});
 
 // Keep server alive - respond to external pings
 app.get('/api/ping', (req, res) => {
