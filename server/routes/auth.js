@@ -101,7 +101,7 @@ const sendOTPEmail = async (email, otp, type) => {
 </html>
 `;
     
-    if (process.env.RESEND_API_KEY && process.env.RESEND_API_KEY.startsWith('re_')) {
+    if (process.env.USE_RESEND === 'true' && process.env.RESEND_API_KEY && process.env.RESEND_API_KEY.startsWith('re_')) {
       console.log('Using Resend API...');
       const result = await resend.emails.send({
         from: 'JJAZ MART <jjazmart878@gmail.com>',
@@ -112,8 +112,7 @@ const sendOTPEmail = async (email, otp, type) => {
       console.log('Resend result:', JSON.stringify(result));
       if (result.error) {
         console.error('Resend error:', result.error);
-        console.log('FALLBACK: OTP for', email, 'is:', otp);
-        return true; // Still return true so user doesn't see error
+        return false;
       }
       return true;
     } else if (process.env.EMAIL_HOST && process.env.EMAIL_USER) {
