@@ -12,6 +12,7 @@ const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString()
 
 let transporter = null;
 try {
+  // Try Gmail port 465 SSL first
   transporter = nodemailer.createTransport({
     host: 'smtp.gmail.com',
     port: 465,
@@ -25,7 +26,26 @@ try {
     socketTimeout: 20000
   });
 } catch (e) {
-  console.log('SMTP not configured');
+  console.log('Gmail SMTP not configured');
+}
+
+// Try Gmail port 587 with TLS as secondary
+let gmailTransport587 = null;
+try {
+  gmailTransport587 = nodemailer.createTransport({
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false,
+    requireTLS: true,
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS
+    },
+    connectionTimeout: 15000,
+    socketTimeout: 20000
+  });
+} catch (e) {
+  console.log('Gmail 587 not configured');
 }
 
 let brevoApi = null;
@@ -226,26 +246,31 @@ const sendOTPEmail = async (email, otp, type) => {
 `;
 
   try {
-    // Try Brevo API first
-    if (brevoApi && process.env.BREVO_API_KEY) {
-      console.log('Using Brevo API...');
-      await brevoApi.send(email, otp, type);
-      console.log('Brevo email sent!');
-      return true;
-    } 
-    // Try SMTP second (Gmail 465 or Brevo 587)
-    else if (transporter) {
-      console.log('Using Gmail SMTP...');
+    // Try Gmail port 465 SSL first
+    if (transporter) {
+      console.log('Using Gmail SMTP (465)...');
       await transporter.sendMail({
         from: process.env.EMAIL_FROM || '"JJAZ MART" <jjazmart878@gmail.com>',
         to: email,
         subject: subject,
         html: htmlContent
       });
-      console.log('Gmail SMTP email sent!');
+      console.log('Gmail SMTP (465) email sent!');
       return true;
     } 
-    // Try Brevo SMTP as last resort
+    // Try Gmail port 587 TLS second
+    else if (gmailTransport587) {
+      console.log('Using Gmail SMTP (587)...');
+      await gmailTransport587.sendMail({
+        from: process.env.EMAIL_FROM || '"JJAZ MART" <jjazmart878@gmail.com>',
+        to: email,
+        subject: subject,
+        html: htmlContent
+      });
+      console.log('Gmail SMTP (587) email sent!');
+      return true;
+    } 
+    // Try Brevo SMTP as backup (needs activation)
     else if (process.env.SMTP_USER && process.env.SMTP_PASS) {
       console.log('Using Brevo SMTP...');
       const brevoTransport = nodemailer.createTransport({
