@@ -28,7 +28,7 @@ const TermsPage = () => {
 
           <Grid container spacing={4} sx={{ mb: 6 }}>
             {[
-              { icon: <LocalShippingIcon />, title: 'Shipping Policy', desc: 'Free shipping on orders above ₹500. Delivery in 3-5 business days.' },
+              { icon: <LocalShippingIcon />, title: 'Shipping Policy', desc: 'Free shipping on orders above ₹500. Delivery within 30 minutes.' },
               { icon: <ReplayIcon />, title: 'Return Policy', desc: '30-day return policy for most items._items must be unused and in original packaging.' },
               { icon: <PaymentIcon />, title: 'Payment Methods', desc: 'Accept all major credit/debit cards, UPI, and Cash on Delivery.' },
               { icon: <SupportIcon />, title: 'Customer Support', desc: '24/7 customer support via chat, email, and phone.' },

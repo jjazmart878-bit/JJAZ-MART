@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Box, Container, Typography, TextField, Button, Grid, Link, Paper } from '@mui/material';
+import { useState, useEffect } from 'react';
+import { Box, Container, Typography, TextField, Button, Grid, Link, Paper, Alert } from '@mui/material';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
@@ -12,7 +12,16 @@ const LoginPage = () => {
   const navigate = useNavigate();
   const { login, isLoading } = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const { register, handleSubmit, formState: { errors } } = useForm();
+
+  useEffect(() => {
+    const verified = sessionStorage.getItem('accountVerified');
+    if (verified === 'true') {
+      setShowSuccessMessage(true);
+      sessionStorage.removeItem('accountVerified');
+    }
+  }, []);
 
   const onSubmit = async (data) => {
     try {
@@ -31,11 +40,17 @@ const LoginPage = () => {
   };
 
   return (
-    <Box sx={{ bgcolor: '#f8fafc', minHeight: '100vh', py: 8, display: 'flex', alignItems: 'center' }}>
+    <Box sx={{ bgcolor: '#f8fafc', minHeight: '100vh', py: 4, display: 'flex', alignItems: 'center' }}>
       <Container maxWidth="sm">
         <Paper sx={{ p: 4 }}>
           <Typography variant="h4" sx={{ mb: 1, fontWeight: 700 }}>Welcome Back</Typography>
           <Typography color="text.secondary" sx={{ mb: 4 }}>Sign in to continue</Typography>
+
+          {showSuccessMessage && (
+            <Alert severity="success" sx={{ mb: 3, bgcolor: '#f0fdf4', color: '#166534', '& .MuiAlert-icon': { color: '#22c55e' } }}>
+              Your account has been verified successfully! Please login with your email and password.
+            </Alert>
+          )}
 
           <form onSubmit={handleSubmit(onSubmit)}>
             <TextField
@@ -63,8 +78,8 @@ const LoginPage = () => {
               }}
               sx={{ mb: 2 }}
             />
-<Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1, mb: 2 }}>
-              <Link component={RouterLink} to="/forgot-password" sx={{ fontSize: '0.875rem' }}>Forgot Password?</Link>
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1, mb: 2 }}>
+              <Link component={RouterLink} to="/forgot-password" sx={{ fontSize: '0.875rem', color: '#22c55e' }}>Forgot Password?</Link>
             </Box>
             <Button type="submit" variant="contained" fullWidth size="large" disabled={isLoading}>
               {isLoading ? 'Signing In...' : 'Sign In'}

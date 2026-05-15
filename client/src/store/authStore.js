@@ -10,6 +10,8 @@ export const useAuthStore = create(
       isLoading: false,
       isAuthenticated: false,
 
+      setLoading: (loading) => set({ isLoading: loading }),
+
       login: async (credentials) => {
         set({ isLoading: true });
         try {
@@ -32,13 +34,15 @@ export const useAuthStore = create(
         set({ isLoading: true });
         try {
           const { data } = await authAPI.register(userData);
-          localStorage.setItem('token', data.token);
-          set({
-            user: data.user,
-            token: data.token,
-            isAuthenticated: true,
-            isLoading: false,
-          });
+          if (data.token) {
+            localStorage.setItem('token', data.token);
+            set({
+              user: data.user,
+              token: data.token,
+              isAuthenticated: true,
+              isLoading: false,
+            });
+          }
           return data;
         } catch (error) {
           set({ isLoading: false });

@@ -1,28 +1,34 @@
 const Joi = require('joi');
 
+const stringEmail = Joi.string().email({ tlds: { allow: false } });
+
 const registerSchema = Joi.object({
-  email: Joi.string().email().required(),
+  email: Joi.string().min(5).max(255).required(),
   password: Joi.string().min(6).required(),
   fullName: Joi.string().min(2).max(255).required(),
   phone: Joi.string().min(10).max(20).required(),
   sendOtp: Joi.boolean().optional(),
   verify: Joi.boolean().optional(),
-  otp: Joi.string().optional(),
-  confirmPassword: Joi.string().optional()
+  otp: Joi.string().when('verify', {
+    is: true,
+    then: Joi.string().length(6).required(),
+    otherwise: Joi.string().allow('', null).optional()
+  }),
+  confirmPassword: Joi.string().allow('', null).optional()
 });
 
 const forgotPasswordSchema = Joi.object({
-  email: Joi.string().email().required()
+  email: Joi.string().min(5).max(255).required()
 });
 
 const resetPasswordSchema = Joi.object({
-  email: Joi.string().email().required(),
+  email: Joi.string().min(5).max(255).required(),
   otp: Joi.string().length(6).required(),
   newPassword: Joi.string().min(6).required()
 });
 
 const loginSchema = Joi.object({
-  email: Joi.string().email().required(),
+  email: Joi.string().min(5).max(255).required(),
   password: Joi.string().required()
 });
 
@@ -75,11 +81,15 @@ const orderSchema = Joi.object({
 
 const validate = (schema) => {
   return (req, res, next) => {
-    const { error } = schema.validate(req.body, { abortEarly: false });
+    console.log('Validation - req.body before:', JSON.stringify(req.body));
+    const { error, value } = schema.validate(req.body, { abortEarly: false });
     if (error) {
+      console.log('Validation error:', error.details);
       const errors = error.details.map(detail => detail.message).join(', ');
       return res.status(400).json({ error: errors });
     }
+    console.log('Validation success, value.email:', value?.email);
+    // Don't replace req.body - just validate and continue
     next();
   };
 };

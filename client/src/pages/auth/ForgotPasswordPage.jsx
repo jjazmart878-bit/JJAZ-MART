@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Box, Container, Typography, TextField, Button, Paper, InputAdornment } from '@mui/material';
+import { Box, Container, Typography, TextField, Button, Paper, InputAdornment, Link } from '@mui/material';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
@@ -19,16 +19,23 @@ const ForgotPasswordPage = () => {
     setIsLoading(true);
     try {
       if (step === 1) {
-        await authAPI.forgotPassword(data);
+        console.log('Step 1 - Email:', data.email);
+        await authAPI.forgotPassword({ email: data.email });
         setEmail(data.email);
         setStep(2);
         toast.success('OTP sent to your email!');
       } else {
-        await authAPI.resetPassword({ email, otp: data.otp, newPassword: data.newPassword });
+        console.log('Step 2 - Email:', email, 'OTP:', data.otp);
+        await authAPI.resetPassword({ 
+          email: email, 
+          otp: data.otp, 
+          newPassword: data.newPassword 
+        });
         toast.success('Password reset successful!');
         navigate('/login');
       }
     } catch (error) {
+      console.error('Error:', error.response?.data);
       toast.error(error.response?.data?.error || 'Failed');
     } finally {
       setIsLoading(false);

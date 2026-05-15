@@ -83,7 +83,7 @@ const OrderConfirmationPage = () => {
                     {[
                       { icon: <ScheduleIcon />, label: 'Status', value: order?.status || 'Confirmed' },
                       { icon: <PaymentIcon />, label: 'Payment', value: order?.payment_method === 'cod' ? 'Cash on Delivery' : 'Online' },
-                      { icon: <LocalShippingIcon />, label: 'Delivery', value: '3-5 business days' },
+                      { icon: <LocalShippingIcon />, label: 'Delivery', value: 'Within 30 minutes' },
                     ].map((item, i) => (
                       <Grid item xs={4} key={i}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>

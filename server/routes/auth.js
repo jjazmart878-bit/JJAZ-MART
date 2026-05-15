@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
+const nodemailer = require('nodemailer');
 const { createUser, findUserByEmail, findUserById, updateUser, updatePassword } = require('../queries/users');
 const { generateToken } = require('../middleware/auth');
 const { validate, registerSchema, loginSchema, updateProfileSchema, forgotPasswordSchema, resetPasswordSchema } = require('../middleware/validation');
@@ -10,18 +11,21 @@ const otpStore = new Map();
 
 const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
 
-const sendOTPEmail = async (email, otp, type) => {
-  const nodemailer = require('nodemailer');
-  const transporter = nodemailer.createTransport({
-    host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-    port: parseInt(process.env.EMAIL_PORT) || 587,
-    secure: false,
-    auth: {
-      user: process.env.EMAIL_USER || 'jjazmall@gmail.com',
-      pass: process.env.EMAIL_PASS || 'your-app-password'
-    }
-  });
+const transporter = nodemailer.createTransport({
+  host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+  port: parseInt(process.env.EMAIL_PORT) || 587,
+  secure: false,
+  requireTLS: true,
+  auth: {
+    user: process.env.EMAIL_USER || 'jjazmart878@gmail.com',
+    pass: process.env.EMAIL_PASS || 'ygff xbpb ssjm shqv'
+  },
+  connectionTimeout: 10000,
+  greetingTimeout: 10000,
+  socketTimeout: 10000
+});
 
+const sendOTPEmail = async (email, otp, type) => {
   const subject = type === 'verification' ? 'Verify Your JJAZ MART Account' : 'Your JJAZ MART Password Reset OTP';
   const htmlContent = `
     <!DOCTYPE html>
@@ -73,15 +77,17 @@ const sendOTPEmail = async (email, otp, type) => {
   `;
 
   try {
+    console.log('Sending OTP email to:', email);
     await transporter.sendMail({
-      from: process.env.EMAIL_FROM || '"JJAZ MART" <noreply@jjazmart.com>',
+      from: process.env.EMAIL_FROM || '"JJAZ MART" <jjazmart878@gmail.com>',
       to: email,
       subject: subject,
       html: htmlContent
     });
+    console.log('OTP email sent successfully to:', email);
     return true;
   } catch (error) {
-    console.error('Email error:', error);
+    console.error('Email error:', error.message);
     return false;
   }
 };
@@ -90,22 +96,50 @@ router.post('/register', validate(registerSchema), async (req, res) => {
   try {
     const { email, password, fullName, phone, sendOtp, verify, otp } = req.body;
 
-    const existingUser = await findUserByEmail(email);
-    if (existingUser) {
-      return res.status(400).json({ error: 'Email already registered' });
+    console.log('Register request body:', req.body);
+    console.log('Parsed values - email:', email, 'type:', typeof email);
+
+    if (!email || typeof email !== 'string') {
+      return res.status(400).json({ error: 'Email is required and must be a valid string' });
+    }
+    if (!password || typeof password !== 'string') {
+      return res.status(400).json({ error: 'Password is required' });
+    }
+    if (!fullName || typeof fullName !== 'string') {
+      return res.status(400).json({ error: 'Full name is required' });
+    }
+    if (!phone || typeof phone !== 'string') {
+      return res.status(400).json({ error: 'Phone is required' });
     }
 
     if (sendOtp) {
+      const existingUser = await findUserByEmail(email);
+      if (existingUser) {
+        return res.status(400).json({ error: 'Email already registered. Please login instead.' });
+      }
+
       const genOtp = generateOTP();
       otpStore.set(email, { otp: genOtp, expires: Date.now() + 600000 });
-      await sendOTPEmail(email, genOtp, 'verification');
-      return res.json({ message: 'OTP sent to your email' });
+      
+      const emailSent = await sendOTPEmail(email, genOtp, 'verification');
+      if (!emailSent) {
+        return res.status(500).json({ error: 'Failed to send OTP email. Please try again.' });
+      }
+      
+      return res.json({ message: 'OTP sent to your email. Please check your inbox.' });
     }
 
     if (verify) {
       const stored = otpStore.get(email);
-      if (!stored || stored.otp !== otp || stored.expires < Date.now()) {
-        return res.status(400).json({ error: 'Invalid or expired OTP' });
+      if (!stored) {
+        return res.status(400).json({ error: 'OTP expired. Please request a new OTP.' });
+      }
+      if (stored.otp !== otp) {
+        return res.status(400).json({ error: 'Invalid OTP. Please check and try again.' });
+      }
+      if (stored.expires < Date.now()) {
+        otpStore.delete(email);
+        return res.status(400).json({ error: 'OTP expired. Please request a new OTP.' });
       }
       otpStore.delete(email);
     }
@@ -115,7 +149,7 @@ router.post('/register', validate(registerSchema), async (req, res) => {
     const token = generateToken(user);
 
     res.status(201).json({
-      message: 'Registration successful',
+      message: 'Registration successful! Welcome to JJAZ MART.',
       user: {
         id: user.id,
         email: user.email,
@@ -127,7 +161,7 @@ router.post('/register', validate(registerSchema), async (req, res) => {
     });
   } catch (error) {
     console.error('Registration error:', error);
-    res.status(500).json({ error: 'Registration failed' });
+    res.status(500).json({ error: 'Registration failed. Please try again.' });
   }
 });
 
@@ -165,20 +199,27 @@ router.post('/login', validate(loginSchema), async (req, res) => {
   }
 });
 
-router.post('/forgot-password', validate(forgotPasswordSchema), async (req, res) => {
+router.post('/forgot-password', async (req, res) => {
   try {
-    const { email } = req.body;
+    const email = (req.body.email || '').toString().trim().toLowerCase();
+    
     if (!email) {
       return res.status(400).json({ error: 'Email is required' });
     }
 
+    console.log('Forgot password - email:', email);
+
     const user = await findUserByEmail(email);
     if (!user) {
-      return res.status(404).json({ error: 'Email not found' });
+      console.log('User not found for email:', email);
+      return res.status(404).json({ error: 'Email not found in our records' });
     }
 
     const genOtp = generateOTP();
-    otpStore.set('reset_' + email, { otp: genOtp, expires: Date.now() + 600000 });
+    const storeKey = 'reset_' + email;
+    console.log('Storing OTP with key:', storeKey, 'OTP:', genOtp);
+    
+    otpStore.set(storeKey, { otp: genOtp, expires: Date.now() + 600000 });
     await sendOTPEmail(email, genOtp, 'reset');
     
     res.json({ message: 'OTP sent to your email' });
@@ -188,18 +229,48 @@ router.post('/forgot-password', validate(forgotPasswordSchema), async (req, res)
   }
 });
 
-router.post('/reset-password', validate(resetPasswordSchema), async (req, res) => {
+router.post('/reset-password', async (req, res) => {
   try {
-    const { email, otp, newPassword } = req.body;
+    const email = (req.body.email || '').toString().trim().toLowerCase();
+    const otp = (req.body.otp || '').toString().trim();
+    const newPassword = (req.body.newPassword || '').toString().trim();
     
-    const stored = otpStore.get('reset_' + email);
-    if (!stored || stored.otp !== otp || stored.expires < Date.now()) {
-      return res.status(400).json({ error: 'Invalid or expired OTP' });
+    console.log('Reset password - email:', email);
+    console.log('Reset password - otp:', otp);
+    
+    if (!email || !otp || !newPassword) {
+      return res.status(400).json({ error: 'All fields are required' });
     }
-    otpStore.delete('reset_' + email);
-
+    
+    const storeKey = 'reset_' + email;
+    const stored = otpStore.get(storeKey);
+    
+    console.log('Looking for key:', storeKey);
+    console.log('Stored data:', stored);
+    
+    if (!stored) {
+      return res.status(400).json({ error: 'OTP expired. Please request a new OTP.' });
+    }
+    
+    if (stored.otp !== otp) {
+      return res.status(400).json({ error: 'Invalid OTP. Please check and try again.' });
+    }
+    
+    if (stored.expires < Date.now()) {
+      otpStore.delete(storeKey);
+      return res.status(400).json({ error: 'OTP expired. Please request a new OTP.' });
+    }
+    
+    otpStore.delete(storeKey);
+    console.log('OTP verified, resetting password for:', email);
+    
+    const user = await findUserByEmail(email);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
     const passwordHash = await bcrypt.hash(newPassword, 10);
-    await updatePassword(email, passwordHash);
+    await updatePassword(user.id, passwordHash);
     
     res.json({ message: 'Password reset successful' });
   } catch (error) {
