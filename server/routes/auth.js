@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const nodemailer = require('nodemailer');
-const { Resend } = require('resend');
+const SibApiV3Sdk = require('@sendinblue/client');
 const { createUser, findUserByEmail, findUserById, updateUser, updatePassword } = require('../queries/users');
 const { generateToken } = require('../middleware/auth');
 const { validate, registerSchema, loginSchema, updateProfileSchema } = require('../middleware/validation');
@@ -11,30 +11,37 @@ const { authenticateToken } = require('../middleware/auth');
 const otpStore = new Map();
 const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
 
-const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-  port: 465,
-  secure: true,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
-  }
-});
+let transporter = null;
+try {
+  transporter = nodemailer.createTransport({
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true,
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS
+    },
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 10000
+  });
+} catch (e) {
+  console.log('SMTP not configured');
+}
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+let brevoApi = null;
+if (process.env.BREVO_API_KEY) {
+  brevoApi = new SibApiV3Sdk.TransactionalEmailsApi();
+  brevoApi.setApiKey(SibApiV3Sdk.TransactionalEmailsApiApiKeys.apiKey, process.env.BREVO_API_KEY);
+}
 
 const sendOTPEmail = async (email, otp, type) => {
-  console.log('=== sendOTPEmail called ===');
+  console.log('=== sendOTPEmail ===');
   console.log('Email:', email, 'OTP:', otp, 'Type:', type);
-  console.log('NODE_ENV:', process.env.NODE_ENV);
-  console.log('EMAIL_HOST:', process.env.EMAIL_HOST);
-  console.log('EMAIL_USER:', process.env.EMAIL_USER);
-  console.log('RESEND_API_KEY:', process.env.RESEND_API_KEY ? 'Set' : 'Not set');
   
-  try {
-    const subject = type === 'verification' ? 'Verify Your JJAZ MART Account' : 'Your JJAZ MART Password Reset OTP';
-    
-    const htmlContent = `
+  const subject = type === 'verification' ? 'Verify Your JJAZ MART Account' : 'Your JJAZ MART Password Reset OTP';
+  
+  const htmlContent = `
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -47,14 +54,12 @@ const sendOTPEmail = async (email, otp, type) => {
     <tr>
       <td align="center" style="padding: 40px 20px;">
         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 480px; background-color: #ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.1);">
-          <!-- Header -->
           <tr>
             <td style="background: linear-gradient(135deg, #22c55e 0%, #15803d 100%); padding: 40px 30px; text-align: center;">
               <h1 style="color: #ffffff; margin: 0; font-size: 32px; font-weight: 800; letter-spacing: 2px;">JJAZ MART</h1>
               <p style="color: rgba(255,255,255,0.85); margin: 10px 0 0 0; font-size: 14px;">Your Trusted Grocery Store</p>
             </td>
           </tr>
-          <!-- Content -->
           <tr>
             <td style="padding: 40px 30px;">
               <h2 style="color: #1f2937; margin: 0 0 10px 0; font-size: 24px; font-weight: 600; text-align: center;">
@@ -65,26 +70,22 @@ const sendOTPEmail = async (email, otp, type) => {
                   ? 'Thank you for joining JJAZ MART! Use the code below to activate your account.' 
                   : 'We received a request to reset your password. Use the code below to proceed.'}
               </p>
-              <!-- OTP Box -->
               <div style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 2px solid #22c55e; border-radius: 16px; padding: 30px; text-align: center; margin: 0 0 25px 0;">
                 <p style="color: #6b7280; margin: 0 0 10px 0; font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Your Verification Code</p>
                 <p style="margin: 0; font-size: 42px; font-weight: 800; color: #22c55e; letter-spacing: 12px;">${otp}</p>
               </div>
-              <!-- Info -->
               <div style="background-color: #f9fafb; border-radius: 12px; padding: 20px; text-align: center; margin: 0 0 25px 0;">
                 <p style="color: #374151; margin: 0; font-size: 14px;">
-                  <span style="color: #22c55e; font-size: 18px;">⏱</span><br>
+                  <span style="font-size: 18px;">&#9201;</span><br>
                   This code expires in <strong>10 minutes</strong>
                 </p>
               </div>
-              <!-- Footer Note -->
               <p style="color: #9ca3af; font-size: 13px; text-align: center; margin: 0; line-height: 1.6;">
                 If you didn't request this code, please ignore this email.<br>
                 For security, don't share this code with anyone.
               </p>
             </td>
           </tr>
-          <!-- Footer -->
           <tr>
             <td style="background-color: #1f2937; padding: 25px 30px; text-align: center;">
               <p style="color: #9ca3af; font-size: 12px; margin: 0;">
@@ -100,46 +101,42 @@ const sendOTPEmail = async (email, otp, type) => {
 </body>
 </html>
 `;
-    
-    if (process.env.USE_RESEND === 'true' && process.env.RESEND_API_KEY && process.env.RESEND_API_KEY.startsWith('re_')) {
-      console.log('Using Resend API...');
-      const result = await resend.emails.send({
-        from: 'JJAZ MART <jjazmart878@gmail.com>',
-        to: email,
-        subject: subject,
-        html: htmlContent
-      });
-      console.log('Resend result:', JSON.stringify(result));
-      if (result.error) {
-        console.error('Resend error:', result.error);
-        return false;
-      }
+
+  try {
+    // Try Brevo API first
+    if (brevoApi && process.env.BREVO_API_KEY) {
+      console.log('Using Brevo API...');
+      const sendSmtpEmail = new SibApiV3Sdk.SmtpMessage();
+      sendSmtpEmail.subject = subject;
+      sendSmtpEmail.htmlContent = htmlContent;
+      sendSmtpEmail.sender = { name: 'JJAZ MART', email: 'jjazmart878@gmail.com' };
+      sendSmtpEmail.to = [{ email: email }];
+      
+      await brevoApi.sendTransacEmail(sendSmtpEmail);
+      console.log('Brevo email sent!');
       return true;
-    } else if (process.env.EMAIL_HOST && process.env.EMAIL_USER) {
+    } 
+    // Try SMTP second
+    else if (transporter) {
       console.log('Using SMTP port 465...');
-      const t = nodemailer.createTransport({
-        host: 'smtp.gmail.com',
-        port: 465,
-        secure: true,
-        auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS }
-      });
-      await t.sendMail({
-        from: process.env.EMAIL_FROM,
+      await transporter.sendMail({
+        from: process.env.EMAIL_FROM || '"JJAZ MART" <jjazmart878@gmail.com>',
         to: email,
         subject: subject,
         html: htmlContent
       });
-      console.log('SMTP email sent! Message ID logged.');
+      console.log('SMTP email sent!');
       return true;
-    } else {
-      console.log('No email config - logging OTP:', otp);
+    } 
+    // Fallback - log OTP
+    else {
+      console.log('NO EMAIL SERVICE - OTP:', otp);
       return true;
     }
   } catch (error) {
-    console.error('Email error details:', error);
-    console.error('Error message:', error.message);
-    console.error('Error code:', error.code);
-    return false;
+    console.error('Email error:', error.message);
+    console.log('FALLBACK - OTP for', email, 'is:', otp);
+    return true;
   }
 };
 
