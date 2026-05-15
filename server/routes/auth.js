@@ -149,16 +149,37 @@ const sendOTPEmail = async (email, otp, type) => {
       console.log('Brevo email sent!');
       return true;
     } 
-    // Try SMTP second (Brevo or Gmail)
+    // Try SMTP second (Gmail 465 or Brevo 587)
     else if (transporter) {
-      console.log('Using SMTP...');
+      console.log('Using Gmail SMTP...');
       await transporter.sendMail({
         from: process.env.EMAIL_FROM || '"JJAZ MART" <jjazmart878@gmail.com>',
         to: email,
         subject: subject,
         html: htmlContent
       });
-      console.log('SMTP email sent!');
+      console.log('Gmail SMTP email sent!');
+      return true;
+    } 
+    // Try Brevo SMTP as last resort
+    else if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+      console.log('Using Brevo SMTP...');
+      const brevoTransport = nodemailer.createTransport({
+        host: 'smtp-relay.brevo.com',
+        port: 587,
+        secure: false,
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS
+        }
+      });
+      await brevoTransport.sendMail({
+        from: process.env.SMTP_USER,
+        to: email,
+        subject: subject,
+        html: htmlContent
+      });
+      console.log('Brevo SMTP email sent!');
       return true;
     } 
     // Fallback - log OTP
