@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const nodemailer = require('nodemailer');
-const SibApiV3Sdk = require('@sendinblue/client');
 const { createUser, findUserByEmail, findUserById, updateUser, updatePassword } = require('../queries/users');
 const { generateToken } = require('../middleware/auth');
 const { validate, registerSchema, loginSchema, updateProfileSchema } = require('../middleware/validation');
@@ -21,9 +20,9 @@ try {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS
     },
-    connectionTimeout: 10000,
-    greetingTimeout: 10000,
-    socketTimeout: 10000
+    connectionTimeout: 15000,
+    greetingTimeout: 15000,
+    socketTimeout: 20000
   });
 } catch (e) {
   console.log('SMTP not configured');
@@ -31,8 +30,48 @@ try {
 
 let brevoApi = null;
 if (process.env.BREVO_API_KEY) {
-  brevoApi = new SibApiV3Sdk.TransactionalEmailsApi();
-  brevoApi.setApiKey(SibApiV3Sdk.TransactionalEmailsApiApiKeys.apiKey, process.env.BREVO_API_KEY);
+  try {
+    const https = require('https');
+    brevoApi = {
+      send: (email, otp, type) => {
+        return new Promise((resolve, reject) => {
+          const subject = type === 'verification' ? 'Verify Your JJAZ MART Account' : 'Your JJAZ MART Password Reset OTP';
+          const postData = JSON.stringify({
+            subject: subject,
+            htmlContent: htmlContent,
+            sender: { name: 'JJAZ MART', email: 'ab7187001@smtp-brevo.com' },
+            to: [{ email: email }]
+          });
+          const options = {
+            hostname: 'api.brevo.com',
+            port: 443,
+            path: '/v3/smtp/email',
+            method: 'POST',
+            headers: {
+              'accept': 'application/json',
+              'api-key': process.env.BREVO_API_KEY,
+              'content-type': 'application/json',
+              'content-length': Buffer.byteLength(postData)
+            }
+          };
+          const req = https.request(options, (res) => {
+            let data = '';
+            res.on('data', chunk => data += chunk);
+            res.on('end', () => {
+              console.log('Brevo Status:', res.statusCode, data);
+              if (res.statusCode === 201 || res.statusCode === 200) resolve(data);
+              else reject(new Error(data));
+            });
+          });
+          req.on('error', reject);
+          req.write(postData);
+          req.end();
+        });
+      }
+    };
+  } catch (e) {
+    console.log('Brevo not configured');
+  }
 }
 
 const sendOTPEmail = async (email, otp, type) => {
@@ -106,19 +145,13 @@ const sendOTPEmail = async (email, otp, type) => {
     // Try Brevo API first
     if (brevoApi && process.env.BREVO_API_KEY) {
       console.log('Using Brevo API...');
-      const sendSmtpEmail = new SibApiV3Sdk.SmtpMessage();
-      sendSmtpEmail.subject = subject;
-      sendSmtpEmail.htmlContent = htmlContent;
-      sendSmtpEmail.sender = { name: 'JJAZ MART', email: 'jjazmart878@gmail.com' };
-      sendSmtpEmail.to = [{ email: email }];
-      
-      await brevoApi.sendTransacEmail(sendSmtpEmail);
+      await brevoApi.send(email, otp, type);
       console.log('Brevo email sent!');
       return true;
     } 
-    // Try SMTP second
+    // Try SMTP second (Brevo or Gmail)
     else if (transporter) {
-      console.log('Using SMTP port 465...');
+      console.log('Using SMTP...');
       await transporter.sendMail({
         from: process.env.EMAIL_FROM || '"JJAZ MART" <jjazmart878@gmail.com>',
         to: email,
